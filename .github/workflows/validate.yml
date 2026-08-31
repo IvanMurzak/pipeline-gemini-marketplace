@@ -1,0 +1,25 @@
+name: Validate marketplace
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate catalog and Git sources
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          catalog = json.loads(Path('.agents/plugins/marketplace.json').read_text())
+          assert catalog.get('name') and catalog.get('plugins')
+          for plugin in catalog['plugins']:
+              source = plugin.get('source', {})
+              policy = plugin.get('policy', {})
+              assert plugin.get('name') and source.get('source') == 'url' and source.get('url')
+              assert policy.get('installation') and policy.get('authentication') and plugin.get('category')
+              subprocess.run(['git', 'ls-remote', source['url'], source.get('ref', 'HEAD')], check=True)
+          PY
